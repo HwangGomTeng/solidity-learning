@@ -21,7 +21,7 @@ contract TinyBank {
     }
 
     function stake(uint256 _amount) external {
-        require(_amount > 0, "cannot stake 0 amount");
+        require(_amount >= 0, "cannot stake 0 amount");
         stakingToken.transferFrom(msg.sender, address(this), _amount);
         staked[msg.sender] += _amount;
         totalStaked += _amount;
