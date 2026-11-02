@@ -28,19 +28,6 @@ contract MyToken is ManagedAccess {
         _mint(_amount * 10 ** uint256(decimals), msg.sender); // 0이 17개 = 10^17
     }
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "You are not authorized");
-        _;
-    }
-
-    modifier onlyManager() {
-        require(
-            msg.sender == manager,
-            "You are not authorized to manage this token"
-        );
-        _;
-    }
-
     function approve(address spender, uint256 amount) external {
         allowance[msg.sender][spender] = amount;
         emit Approval(spender, amount);
