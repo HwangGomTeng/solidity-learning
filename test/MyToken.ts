@@ -53,6 +53,15 @@ describe("My Token", () => {
         MINTING_AMOUNT * 10n ** DECIMALS,
       );
     });
+
+    //TDD: Test Driben Development
+    it("should return or revert when minting infinitly", async () => {
+      const hacker = signers[2];
+      const mintingAgainAmount = hre.ethers.parseUnits("10000", DECIMALS);
+      await expect(
+        myTokenC.connect(hacker).mint(mintingAgainAmount, hacker.address),
+      ).to.be.revertedWith("You are not authorized to manage this token");
+    });
   });
   describe("Transfer", () => {
     it("should have 0.5MT", async () => {
@@ -100,67 +109,45 @@ describe("My Token", () => {
         .withArgs(signer1.address, hre.ethers.parseUnits("10", DECIMALS));
     });
     //--------------------------------------------------------------------------------------------------------------------
-    //권한이 없으면 막히는가?(무시) => o
+    //권한이 없으면 막히는가? => o
     it("should be reverted with insufficient allowance error", async () => {
       const signer0 = signers[0];
       const signer1 = signers[1];
+      const amount = hre.ethers.parseUnits("7", DECIMALS);
+
       await expect(
-        myTokenC.connect(signer1).transferFrom(
-          signer0.address,
-          signer1.address,
-          hre.ethers.parseUnits("7", DECIMALS), //3MT 보내려는 시도******************************
-        ),
+        myTokenC
+          .connect(signer1)
+          .transferFrom(signer0.address, signer1.address, amount),
       ).to.be.revertedWith("insufficient allowance");
     });
     //--------------------------------------------------------------------------------------------------------------------
     //권한을 주고 보내면 잘 보내지는가? => o
-    it("should transfer 1MT to signer1 after approve", async () => {
+    it("should transfer 5MT to signer1 after approve", async () => {
       const signer0 = signers[0];
       const signer1 = signers[1];
-      const amount = hre.ethers.parseUnits("5", DECIMALS); //1MT 보내려는 시도 *******************************
+      const amount = hre.ethers.parseUnits("5", DECIMALS);
 
-      //0. 초기 signer0, signer1의 balance 확인
-      console.log(
-        "signer0 balance:",
-        fmt(await myTokenC.balanceOf(signer0.address)),
-      );
-      console.log(
-        "signer1 balance:",
-        fmt(await myTokenC.balanceOf(signer1.address)),
-      );
+      //0. 초기 balance 확인
+      const signer0Before = await myTokenC.balanceOf(signer0.address);
+      expect(signer0Before).equal(hre.ethers.parseUnits("100", DECIMALS));
+      expect(await myTokenC.balanceOf(signer1.address)).equal(0n);
 
       //1. approve : signer1에게 signer0의 자산 이동권한 부여
       await myTokenC.approve(signer1.address, amount);
-      console.log("===== 1) approve 완료 =====");
-      console.log(
-        "allowance(signer0 -> signer1):",
-        fmt(await myTokenC.allowance(signer0.address, signer1.address)),
+      expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
+        amount,
       );
-      //-------------------------------------------------------------------------------------------------------------------
-      //2. transferFrom: signer1이 signer0의 MT토큰을 자신의 주소(signer1)에게 전송
-      const tx = await myTokenC
+
+      //2. transferFrom : signer1이 signer0의 MT를 자신에게 전송
+      await myTokenC
         .connect(signer1)
         .transferFrom(signer0.address, signer1.address, amount);
-      const receipt = await tx.wait();
-      console.log("===== 2) transferFrom 완료 =====");
-      console.log("tx hash:", tx.hash);
-      console.log("gas used:", receipt?.gasUsed.toString());
 
-      console.log("===== 3) balance 확인 =====");
-      console.log(
-        "signer0 balance:",
-        fmt(await myTokenC.balanceOf(signer0.address)),
+      //3. balance, allowance 확인
+      expect(await myTokenC.balanceOf(signer0.address)).equal(
+        signer0Before - amount,
       );
-      console.log(
-        "signer1 balance:",
-        fmt(await myTokenC.balanceOf(signer1.address)),
-      );
-      console.log(
-        "남은 allowance:",
-        fmt(await myTokenC.allowance(signer0.address, signer1.address)),
-      );
-
-      //3. balance확인
       expect(await myTokenC.balanceOf(signer1.address)).equal(amount);
       expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
         0n,
@@ -175,6 +162,7 @@ describe("My Token", () => {
         (MINTING_AMOUNT + 1n).toString(),
         DECIMALS,
       );
+      const signer0Before = await myTokenC.balanceOf(signer0.address);
 
       await myTokenC.approve(signer1.address, tooMuch);
 
@@ -184,19 +172,11 @@ describe("My Token", () => {
           .transferFrom(signer0.address, signer1.address, tooMuch),
       ).to.be.revertedWith("insufficient balance");
 
-      // 3) balance 확인
-      console.log("===== 3) balance 확인 =====");
-      console.log(
-        "signer0 balance:",
-        fmt(await myTokenC.balanceOf(signer0.address)),
-      );
-      console.log(
-        "signer1 balance:",
-        fmt(await myTokenC.balanceOf(signer1.address)),
-      );
-      console.log(
-        "남은 allowance:",
-        fmt(await myTokenC.allowance(signer0.address, signer1.address)),
+      //revert 됐으니 balance는 그대로, allowance는 approve한 값 그대로여야 함
+      expect(await myTokenC.balanceOf(signer0.address)).equal(signer0Before);
+      expect(await myTokenC.balanceOf(signer1.address)).equal(0n);
+      expect(await myTokenC.allowance(signer0.address, signer1.address)).equal(
+        tooMuch,
       );
     });
   });
