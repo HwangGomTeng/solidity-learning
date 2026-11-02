@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-contract MyToken {
+import "./ManagedAccess.sol";
+
+contract MyToken is ManagedAccess {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address spender, uint256 amount);
 
@@ -19,11 +21,24 @@ contract MyToken {
         string memory _symbol,
         uint8 _decimals,
         uint256 _amount
-    ) {
+    ) ManagedAccess(msg.sender, msg.sender) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
         _mint(_amount * 10 ** uint256(decimals), msg.sender); // 0이 17개 = 10^17
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "You are not authorized");
+        _;
+    }
+
+    modifier onlyManager() {
+        require(
+            msg.sender == manager,
+            "You are not authorized to manage this token"
+        );
+        _;
     }
 
     function approve(address spender, uint256 amount) external {
@@ -41,15 +56,19 @@ contract MyToken {
         emit Transfer(from, to, amount);
     }
 
-    function mint(uint256 amount, address owner) external {
-        _mint(amount, owner);
+    function mint(uint256 amount, address to) external onlyManager {
+        _mint(amount, to);
     }
 
-    function _mint(uint256 amount, address owner) internal {
-        totalSupply += amount;
-        balanceOf[owner] += amount;
+    function setManager(address _manager) external onlyOwner {
+        manager = _manager;
+    }
 
-        emit Transfer(address(0), owner, amount);
+    function _mint(uint256 amount, address to) internal {
+        totalSupply += amount;
+        balanceOf[to] += amount;
+
+        emit Transfer(address(0), to, amount);
     }
 
     function transfer(uint256 amount, address to) external {
@@ -61,17 +80,3 @@ contract MyToken {
         emit Transfer(msg.sender, to, amount);
     }
 }
-
-//function totalSupply() external view returns (uint256){
-//    return totalSupply;
-// }
-
-//runction balanceOf(address owner) exteranl view returns (uint256){
-//    return balanceOf[owner];
-//}
-
-//function name() external view returns(string memory){
-//    return name;
-//}
-
-//
